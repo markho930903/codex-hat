@@ -1,0 +1,20 @@
+{
+  "name": "codex-hat",
+  "interface": {
+    "displayName": "Codex Hat"
+  },
+  "plugins": [
+    {
+      "name": "codex-hat",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-hat"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

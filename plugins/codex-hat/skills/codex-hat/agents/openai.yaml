@@ -1,0 +1,6 @@
+interface:
+  display_name: "Codex Hat"
+  short_description: "Sort tasks across Codex models"
+  default_prompt: "Use $codex-hat to select and run the best Codex model for this task."
+policy:
+  allow_implicit_invocation: false
