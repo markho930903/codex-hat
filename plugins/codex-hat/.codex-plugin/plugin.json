@@ -1,6 +1,6 @@
 {
   "name": "codex-hat",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Sort tasks across supported Codex models and reasoning efforts",
   "author": {
     "name": "markho930903",
@@ -18,7 +18,7 @@
     "category": "Productivity",
     "capabilities": ["Interactive"],
     "defaultPrompt": [
-      "Use $codex-hat to select and run the best Codex model for this task."
+      "Use $codex-hat:codex-hat to select and run the best Codex model for this task."
     ]
   }
 }

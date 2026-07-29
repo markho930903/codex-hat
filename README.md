@@ -18,8 +18,11 @@ Start a new Codex task after installation so the skill is loaded.
 Invoke the router explicitly:
 
 ```text
-$codex-hat Review this branch for correctness and security risks.
+$codex-hat:codex-hat Review this branch for correctness and security risks.
 ```
+
+Codex namespaces plugin skills as `<plugin>:<skill>`, so both parts are
+required when invoking the router explicitly.
 
 The plugin returns the recommended and effective routes, then delegates through
 native Codex tools when the selected model and effort are available. It does not

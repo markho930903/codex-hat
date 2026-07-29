@@ -1,6 +1,6 @@
 ---
 name: codex-hat
-description: Select and execute an available Codex model and reasoning effort from task type, difficulty, risk, and parallelism. Use when the user explicitly invokes $codex-hat, asks Codex to choose a model or effort, or requests task routing across Sol, Terra, and Luna.
+description: Select and execute an available Codex model and reasoning effort from task type, difficulty, risk, and parallelism. Use when the user explicitly invokes $codex-hat:codex-hat, asks Codex to choose a model or effort, or requests task routing across Sol, Terra, and Luna.
 ---
 
 # Codex Hat
