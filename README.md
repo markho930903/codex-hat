@@ -28,6 +28,10 @@ The plugin returns the recommended and effective routes, then delegates through
 native Codex tools when the selected model and effort are available. It does not
 change task permissions or create a separate task unless the user authorizes it.
 
+Routing happens before each materially different phase of work. The plugin may
+delegate that phase to a new agent, but it does not change the current agent's
+model or effort in place. Explicit model and effort choices remain overrides.
+
 `mini` and `minimal` are accepted as input aliases for the selected model's
 lowest supported effort. `ultra` is reserved for hard work with independent
 parallel lanes; `max` is used for deep serial reasoning.

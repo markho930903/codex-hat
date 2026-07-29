@@ -119,3 +119,100 @@ test("rejects unsupported explicit routes and Sol downgrades", () => {
     /gpt-5.6-sol is required but unavailable/,
   );
 });
+
+test("falls forward from Terra to Sol but never backward to Luna", () => {
+  const result = selectRoute(
+    profile({
+      capabilities: { "gpt-5.6-sol": ["medium"] },
+    }),
+  );
+  assert.deepEqual(result.effective, {
+    model: "gpt-5.6-sol",
+    effort: "medium",
+  });
+
+  assert.throws(
+    () =>
+      selectRoute(
+        profile({
+          capabilities: { "gpt-5.6-luna": ["medium"] },
+        }),
+      ),
+    /no allowed fallback/,
+  );
+});
+
+test("preserves an explicit Ultra override outside hard parallel work", () => {
+  const result = selectRoute(
+    profile({
+      override: { model: "gpt-5.6-sol", effort: "ultra" },
+    }),
+  );
+  assert.deepEqual(result.effective, {
+    model: "gpt-5.6-sol",
+    effort: "ultra",
+  });
+  assert.match(result.warnings.at(-1), /outside hard parallel work/);
+});
+
+test("does not select Ultra automatically for serial work", () => {
+  assert.throws(
+    () =>
+      selectRoute(
+        profile({
+          taskType: "architecture",
+          difficulty: "extreme",
+          capabilities: { "gpt-5.6-sol": ["ultra"] },
+        }),
+      ),
+    /required range/,
+  );
+});
+
+test("keeps automatic policy routes monotonic and within their floors", () => {
+  const taskTypes = [
+    "mechanical",
+    "knowledge",
+    "implementation",
+    "investigation",
+    "architecture",
+  ];
+  const difficulties = ["easy", "normal", "hard", "extreme"];
+  const risks = ["low", "normal", "high"];
+  const efforts = ["low", "medium", "high", "xhigh", "max", "ultra"];
+  const models = ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
+
+  for (const taskType of taskTypes) {
+    for (const risk of risks) {
+      for (const parallelizable of [false, true]) {
+        let previous;
+        for (const difficulty of difficulties) {
+          const input = { taskType, difficulty, risk, parallelizable };
+          const { recommended } = selectRoute(input);
+
+          if (risk === "high") {
+            assert.equal(recommended.model, "gpt-5.6-sol");
+            assert.ok(
+              efforts.indexOf(recommended.effort) >= efforts.indexOf("high"),
+            );
+          }
+          if (recommended.effort === "ultra") {
+            assert.equal(parallelizable, true);
+            assert.ok(["hard", "extreme"].includes(difficulty));
+          }
+          if (previous) {
+            assert.ok(
+              models.indexOf(recommended.model) >=
+                models.indexOf(previous.model),
+            );
+            assert.ok(
+              efforts.indexOf(recommended.effort) >=
+                efforts.indexOf(previous.effort),
+            );
+          }
+          previous = recommended;
+        }
+      }
+    }
+  }
+});

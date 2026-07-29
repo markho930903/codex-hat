@@ -123,13 +123,17 @@ function resolveModel(target, capabilities, strict, warnings) {
 
   const fallbacks = {
     "gpt-5.6-luna": ["gpt-5.6-terra", "gpt-5.6-sol"],
-    "gpt-5.6-terra": ["gpt-5.6-sol", "gpt-5.6-luna"],
-    "gpt-5.6-sol": ["gpt-5.6-terra", "gpt-5.6-luna"],
+    "gpt-5.6-terra": ["gpt-5.6-sol"],
+    "gpt-5.6-sol": [],
   };
   const effective = fallbacks[target].find(
     (model) => capabilities[model]?.length,
   );
-  if (!effective) throw new Error("no supported Codex model is available");
+  if (!effective) {
+    throw new Error(
+      `${target} is unavailable and no allowed fallback is available`,
+    );
+  }
 
   warnings.push(`${target} is unavailable; using ${effective}`);
   return effective;
@@ -148,11 +152,17 @@ function resolveEffort(target, efforts, options, warnings) {
   }
 
   const minimum = options.minimum ? EFFORTS.indexOf(options.minimum) : 0;
+  const maximum = options.maximum
+    ? EFFORTS.indexOf(options.maximum)
+    : EFFORTS.length - 1;
   const candidates = efforts.filter(
-    (effort) => EFFORTS.indexOf(effort) >= minimum,
+    (effort) => {
+      const index = EFFORTS.indexOf(effort);
+      return index >= minimum && index <= maximum;
+    },
   );
   if (!candidates.length) {
-    throw new Error(`${options.model} has no effort meeting the required floor`);
+    throw new Error(`${options.model} has no effort meeting the required range`);
   }
 
   const targetIndex = EFFORTS.indexOf(target);
@@ -222,6 +232,10 @@ export function selectRoute(input) {
         !hasEffortOverride && recommended.model === "gpt-5.6-sol"
           ? "high"
           : undefined,
+      maximum:
+        !hasEffortOverride && recommended.effort !== "ultra"
+          ? "max"
+          : undefined,
     },
     warnings,
   );
@@ -233,8 +247,12 @@ export function selectRoute(input) {
   ) {
     warnings.push("explicit override is below the high-risk Sol High floor");
   }
-  if (effort === "ultra" && !profile.parallelizable) {
-    warnings.push("ultra was explicitly selected for non-parallel work");
+  if (
+    effort === "ultra" &&
+    (!profile.parallelizable ||
+      !["hard", "extreme"].includes(profile.difficulty))
+  ) {
+    warnings.push("ultra was explicitly selected outside hard parallel work");
   }
 
   return {
