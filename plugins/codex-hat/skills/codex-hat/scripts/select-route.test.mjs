@@ -99,7 +99,7 @@ test("uses Sol Ultra only for hard parallel supervision", () => {
   );
 });
 
-test("requires the automatic phase model and Luna Max capability", () => {
+test("keeps Sol supervision unavailable errors unchanged", () => {
   assert.throws(
     () =>
       selectRoute(
@@ -108,18 +108,72 @@ test("requires the automatic phase model and Luna Max capability", () => {
     /gpt-5.6-sol is required but unavailable/,
   );
 
-  assert.throws(
-    () =>
-      selectRoute(
-        profile({
-          phase: "implementation",
-          supervisionComplete: true,
-          handoff,
-          capabilities: { "gpt-5.6-luna": ["high"] },
-        }),
-      ),
-    /does not support effort max/,
+});
+
+test("falls back to Terra Extra High only without Luna Max", () => {
+  for (const capabilities of [
+    { "gpt-5.6-terra": ["xhigh"] },
+    { "gpt-5.6-luna": ["high"], "gpt-5.6-terra": ["xhigh"] },
+  ]) {
+    const result = selectRoute(
+      profile({
+        phase: "implementation",
+        supervisionComplete: true,
+        handoff,
+        capabilities,
+      }),
+    );
+    assert.deepEqual(result.recommended, {
+      model: "gpt-5.6-luna",
+      effort: "max",
+    });
+    assert.deepEqual(result.effective, {
+      model: "gpt-5.6-terra",
+      effort: "xhigh",
+    });
+    assert.ok(result.reasons.includes("Luna Max unavailable; Terra Extra High fallback"));
+    assert.ok(result.warnings.includes("gpt-5.6-luna max is unavailable; using gpt-5.6-terra xhigh"));
+  }
+});
+
+test("prefers Luna Max while it remains available", () => {
+  const result = selectRoute(
+    profile({
+      phase: "implementation",
+      supervisionComplete: true,
+      handoff,
+      capabilities: {
+        "gpt-5.6-luna": ["max"],
+        "gpt-5.6-terra": ["xhigh"],
+      },
+    }),
   );
+  assert.deepEqual(result.effective, {
+    model: "gpt-5.6-luna",
+    effort: "max",
+  });
+  assert.ok(!result.reasons.includes("Luna Max unavailable; Terra Extra High fallback"));
+});
+
+test("rejects implementation when neither Luna Max nor Terra Extra High is available", () => {
+  for (const capabilities of [
+    { "gpt-5.6-luna": ["high"] },
+    { "gpt-5.6-terra": ["max"] },
+    { "gpt-5.6-luna": ["high"], "gpt-5.6-terra": ["max"] },
+  ]) {
+    assert.throws(
+      () =>
+        selectRoute(
+          profile({
+            phase: "implementation",
+            supervisionComplete: true,
+            handoff,
+            capabilities,
+          }),
+        ),
+      /gpt-5\.6-luna max is unavailable and fallback gpt-5\.6-terra xhigh is unavailable/,
+    );
+  }
 });
 
 test("allows only overrides identical to the mandatory route", () => {
@@ -142,6 +196,35 @@ test("allows only overrides identical to the mandatory route", () => {
       /supervision route cannot be overridden/,
     );
   }
+});
+
+test("falls back for a valid Luna Max implementation override and rejects Terra", () => {
+  const implementation = {
+    phase: "implementation",
+    supervisionComplete: true,
+    handoff,
+    capabilities: { "gpt-5.6-terra": ["xhigh"] },
+  };
+
+  for (const override of [
+    { model: "gpt-5.6-luna" },
+    { effort: "max" },
+    { model: "gpt-5.6-luna", effort: "max" },
+  ]) {
+    assert.deepEqual(
+      selectRoute({ ...profile(implementation), override }).effective,
+      { model: "gpt-5.6-terra", effort: "xhigh" },
+    );
+  }
+
+  assert.throws(
+    () =>
+      selectRoute({
+        ...profile(implementation),
+        override: { model: "gpt-5.6-terra", effort: "xhigh" },
+      }),
+    /implementation route cannot be overridden/,
+  );
 });
 
 test("rejects invalid phases and unsupported explicit routes", () => {

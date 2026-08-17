@@ -21,9 +21,11 @@ read-only inspection before selecting a route.
   decomposition, decisions, coordination, verification, or result review. Route
   to Sol with at least `high` effort.
 - `implementation`: a bounded execution unit already defined by Sol, including
-  its scope, constraints, relevant context, and completion checks. Route to Luna
-  `max`. The selector requires `supervisionComplete: true` plus `handoff` flags
-  confirming all four items for this phase.
+  its scope, constraints, relevant context, and completion checks. Recommend
+  Luna `max`. When capabilities show Luna `max` is unavailable, the effective
+  route is Terra `xhigh`. Implementation routing fails only when both exact
+  routes are unavailable. The selector requires `supervisionComplete: true`
+  plus `handoff` flags confirming all four items for this phase.
 
 After an implementation unit returns, switch back to `supervision`. Sol reviews
 the result and either accepts it or defines another bounded implementation unit.
@@ -62,7 +64,8 @@ Difficulty controls Sol supervision effort:
 | `extreme` | `max` |
 
 Hard or extreme parallel supervision may use `ultra`. Every implementation unit
-uses Luna `max` regardless of difficulty.
+recommends Luna `max` regardless of difficulty, with Terra `xhigh` only when
+Luna `max` is unavailable.
 
 ## Risk
 
@@ -71,8 +74,8 @@ uses Luna `max` regardless of difficulty.
 - `high`: an authorized action can affect production, money, permissions, a security boundary, persistent data, or an irreversible outcome; or the result directly governs such an action and an error would have material consequences.
 
 Keep difficulty independent from risk. High-risk work still follows the same
-phase routes: Sol defines and reviews the unit, while Luna Max executes only the
-bounded implementation.
+phase routes: Sol defines and reviews the unit, while Luna Max, or Terra Extra
+High when Luna Max is unavailable, executes only the bounded implementation.
 
 ## Parallelism
 
@@ -82,7 +85,8 @@ the critical path. Shared-file edits, ordered migrations, one root-cause proof,
 and one difficult invariant are not parallel work.
 
 Sol may use `ultra` only for hard or extreme parallel supervision. Route each
-independent implementation unit separately to Luna Max.
+independent implementation unit separately to Luna Max, or Terra Extra High
+only when Luna Max is unavailable.
 
 ## Phase Examples
 
@@ -90,8 +94,8 @@ independent implementation unit separately to Luna Max.
 | --- | --- | --- |
 | Understand a bug report and inspect its call path | `supervision` | Sol High or above |
 | Design a migration and split its execution units | `supervision` | Sol High or above |
-| Apply one defined code change with stated checks | `implementation` | Luna Max |
-| Review Luna's diff and test output | `supervision` | Sol High or above |
+| Apply one defined code change with stated checks | `implementation` | Luna Max, or Terra Extra High fallback |
+| Review an implementation agent's diff and test output | `supervision` | Sol High or above |
 | Coordinate three independent hard work units | `supervision` | Sol Ultra |
 
 ## Overrides And Capabilities
@@ -104,9 +108,10 @@ Use these exact model IDs when supported:
 
 Use only efforts returned by the current host.
 
-Automatic routes require their selected model. Luna implementation additionally
-requires `max`; do not silently fall back to Terra or Sol. A Sol supervision
-effort may move within the supported `high` through `max` range.
+Automatic Sol supervision requires Sol. Implementation recommends Luna `max`.
+When host capabilities show Luna `max` is missing, the only fallback is Terra
+`xhigh`; without either exact route, stop. A Sol supervision effort may move
+within the supported `high` through `max` range.
 
 An explicit override is accepted only when it matches the mandatory phase route
 exactly. Reject every cross-model or cross-effort override.

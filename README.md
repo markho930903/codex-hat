@@ -2,7 +2,8 @@
 
 A small Codex plugin that separates task supervision from implementation. Sol
 High or above owns understanding, planning, design, decomposition, and result
-review. Clear implementation units run on Luna Max.
+review. Clear implementation units run on Luna Max, falling back only to Terra
+Extra High when Luna Max is unavailable.
 
 Codex Hat applies to every task through lifecycle hooks. Explicit invocation is
 still available, but is not required.
@@ -28,14 +29,15 @@ Codex namespaces plugin skills as `<plugin>:<skill>`, so both parts are
 required when invoking the router explicitly.
 
 The plugin starts every task under Sol supervision. Once Sol defines a bounded
-implementation unit with completion checks, it delegates that unit to Luna Max,
-then returns the result to Sol for review. It does not change task permissions
-or create a separate task unless the user authorizes it.
+implementation unit with completion checks, it delegates that unit to Luna Max.
+When host capabilities prove Luna Max is unavailable, it delegates only to Terra
+Extra High instead, then returns the result to Sol for review. It does not
+change task permissions or create a separate task unless the user authorizes it.
 
 The selector rejects an implementation phase unless the Sol handoff includes
 `supervisionComplete: true` plus confirmation that scope, constraints, context,
-and completion checks are defined. If either required route is unavailable, the
-task stops instead of substituting another model.
+and completion checks are defined. Sol supervision never falls back. An
+implementation task stops unless Luna Max or Terra Extra High is available.
 
 Routing happens before each materially different phase of work. The plugin may
 delegate that phase to a new agent, but it does not change the current agent's

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-routing.cjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-routing.cjs\" SessionStart",
             "timeout": 5,
             "statusMessage": "Enforcing Codex Hat routing..."
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-routing.cjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-routing.cjs\" UserPromptSubmit",
             "timeout": 5,
             "statusMessage": "Enforcing Codex Hat routing..."
           }
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-routing.cjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-routing.cjs\" SubagentStart",
             "timeout": 5,
             "statusMessage": "Enforcing Codex Hat routing..."
           }

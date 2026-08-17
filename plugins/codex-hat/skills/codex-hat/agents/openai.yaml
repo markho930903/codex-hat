@@ -1,6 +1,6 @@
 interface:
   display_name: "Codex Hat"
-  short_description: "Supervise with Sol, implement with Luna Max"
-  default_prompt: "Use $codex-hat:codex-hat to supervise this task with Sol and delegate clear implementation units to Luna Max."
+  short_description: "Supervise with Sol, implement with Luna Max or Terra Extra High"
+  default_prompt: "Use $codex-hat:codex-hat to supervise this task with Sol and delegate clear implementation units to Luna Max, or Terra Extra High when Luna Max is unavailable."
 policy:
   allow_implicit_invocation: true

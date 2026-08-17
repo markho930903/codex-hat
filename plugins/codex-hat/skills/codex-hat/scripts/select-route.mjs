@@ -205,32 +205,42 @@ export function selectRoute(input) {
   }
 
   const warnings = [];
-  const targetModel = hasModelOverride ? override.model : recommended.model;
-  const targetEffort = hasEffortOverride
-    ? override.effort
-    : recommended.effort;
-  const model = resolveModel(targetModel, capabilities);
-  const effort = resolveEffort(
-    targetEffort,
-    capabilities[model],
-    {
-      model,
-      strict:
-        (hasEffortOverride && !["mini", "minimal"].includes(targetEffort)) ||
-        (!hasModelOverride &&
-          !hasEffortOverride &&
-          profile.phase === "implementation"),
-      minimum:
-        !hasEffortOverride && profile.phase === "supervision"
-          ? "high"
-          : undefined,
-      maximum:
-        !hasEffortOverride && recommended.effort !== "ultra"
+  let model;
+  let effort;
+  if (profile.phase === "implementation") {
+    if (capabilities["gpt-5.6-luna"]?.includes("max")) {
+      model = "gpt-5.6-luna";
+      effort = "max";
+    } else if (capabilities["gpt-5.6-terra"]?.includes("xhigh")) {
+      model = "gpt-5.6-terra";
+      effort = "xhigh";
+      reasons.push("Luna Max unavailable; Terra Extra High fallback");
+      warnings.push("gpt-5.6-luna max is unavailable; using gpt-5.6-terra xhigh");
+    } else {
+      throw new Error(
+        "gpt-5.6-luna max is unavailable and fallback gpt-5.6-terra xhigh is unavailable",
+      );
+    }
+  } else {
+    const targetModel = hasModelOverride ? override.model : recommended.model;
+    const targetEffort = hasEffortOverride
+      ? override.effort
+      : recommended.effort;
+    model = resolveModel(targetModel, capabilities);
+    effort = resolveEffort(
+      targetEffort,
+      capabilities[model],
+      {
+        model,
+        strict: hasEffortOverride && !["mini", "minimal"].includes(targetEffort),
+        minimum: !hasEffortOverride ? "high" : undefined,
+        maximum: !hasEffortOverride && recommended.effort !== "ultra"
           ? "max"
           : undefined,
-    },
-    warnings,
-  );
+      },
+      warnings,
+    );
+  }
 
   if (
     effort === "ultra" &&

@@ -1,6 +1,6 @@
 ---
 name: codex-hat
-description: Enforce Sol High or above for supervision and Luna Max for bounded implementation on every task. Use automatically for all tasks and when the user explicitly invokes $codex-hat:codex-hat or asks about model routing.
+description: Enforce Sol High or above for supervision and Luna Max, with Terra Extra High fallback, for bounded implementation on every task. Use automatically for all tasks and when the user explicitly invokes $codex-hat:codex-hat or asks about model routing.
 ---
 
 # Codex Hat
@@ -28,13 +28,13 @@ Pass an optional `capabilities` object when the host exposes current values. Pas
    - Prefer a native subagent with the exact model and effort for delegated work.
    - Create a separate user-owned task only when the user explicitly authorizes that behavior.
    - Return the recommendation without dispatch when the host cannot select the effective route.
-9. Sol must define each implementation unit's scope, constraints, context, and completion checks. Only then route that unit as `implementation` with `supervisionComplete: true` and all four matching `handoff` flags set to `true`, then delegate it to Luna Max. Luna must not expand or redesign the unit.
-10. After Luna returns, route back to `supervision`. Sol inspects the changes and checks, decides whether the unit is accepted, and defines any follow-up implementation unit.
-11. For hard parallel work, Sol Ultra may split only genuinely independent units. Route each clear implementation unit separately to Luna Max, cap the lanes, wait for them, and let Sol synthesize the result.
+9. Sol must define each implementation unit's scope, constraints, context, and completion checks. Only then route that unit as `implementation` with `supervisionComplete: true` and all four matching `handoff` flags set to `true`, then delegate it to Luna Max. If capabilities show Luna Max is unavailable, use only Terra Extra High. The implementation agent must not expand or redesign the unit.
+10. After the implementation agent returns, route back to `supervision`. Sol inspects the changes and checks, decides whether the unit is accepted, and defines any follow-up implementation unit.
+11. For hard parallel work, Sol Ultra may split only genuinely independent units. Route each clear implementation unit separately to Luna Max or, only when Luna Max is unavailable, Terra Extra High; cap the lanes, wait for them, and let Sol synthesize the result.
 
 ## Failure Rules
 
-- Do not substitute another model for an automatic Sol supervision route or Luna Max implementation route; return the selector error.
+- Do not substitute another model for an automatic Sol supervision route. For implementation, use Terra Extra High only when capabilities show Luna Max is unavailable; return the selector error only when neither exact implementation route is available.
 - Do not set `supervisionComplete: true` until Sol has produced the bounded implementation unit.
 - Do not accept a model or effort override that differs from the mandatory phase route.
 - Do not use `ultra` as a synonym for deeper serial reasoning; it is only for hard parallel supervision.
