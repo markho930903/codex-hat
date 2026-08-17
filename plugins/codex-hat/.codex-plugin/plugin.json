@@ -1,7 +1,7 @@
 {
   "name": "codex-hat",
-  "version": "0.2.0",
-  "description": "Supervise tasks with Sol and delegate clear implementation to Luna Max",
+  "version": "0.2.1",
+  "description": "Enforce Sol supervision and Luna Max implementation for every task",
   "author": {
     "name": "markho930903",
     "url": "https://github.com/markho930903"
@@ -10,13 +10,14 @@
   "repository": "https://github.com/markho930903/codex-hat",
   "keywords": ["codex", "model-routing", "reasoning-effort"],
   "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "displayName": "Codex Hat",
     "shortDescription": "Supervise with Sol, implement with Luna Max.",
-    "longDescription": "Use Sol High or above for understanding, planning, design, decomposition, and result review, then delegate bounded implementation units to Luna Max.",
+    "longDescription": "Enforce Sol High or above for understanding, planning, design, decomposition, and result review, then delegate bounded implementation units to Luna Max on every task.",
     "developerName": "markho930903",
     "category": "Productivity",
-    "capabilities": ["Interactive"],
+    "capabilities": ["Interactive", "Lifecycle hooks"],
     "defaultPrompt": [
       "Use $codex-hat:codex-hat to supervise this task with Sol and delegate clear implementation units to Luna Max."
     ]

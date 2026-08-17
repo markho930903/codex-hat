@@ -22,11 +22,16 @@ read-only inspection before selecting a route.
   to Sol with at least `high` effort.
 - `implementation`: a bounded execution unit already defined by Sol, including
   its scope, constraints, relevant context, and completion checks. Route to Luna
-  `max`.
+  `max`. The selector requires `supervisionComplete: true` plus `handoff` flags
+  confirming all four items for this phase.
 
 After an implementation unit returns, switch back to `supervision`. Sol reviews
 the result and either accepts it or defines another bounded implementation unit.
 Luna does not redesign the task or expand its scope.
+
+Lifecycle hooks inject this policy on session start, every user prompt, and
+every subagent start. The skill is also eligible for implicit invocation, so an
+explicit `$codex-hat:codex-hat` mention is not required.
 
 ## Task Type
 
@@ -67,7 +72,7 @@ uses Luna `max` regardless of difficulty.
 
 Keep difficulty independent from risk. High-risk work still follows the same
 phase routes: Sol defines and reviews the unit, while Luna Max executes only the
-bounded implementation. An explicit override below Sol High produces a warning.
+bounded implementation.
 
 ## Parallelism
 
@@ -97,15 +102,11 @@ Use these exact model IDs when supported:
 - `gpt-5.6-terra`
 - `gpt-5.6-luna`
 
-Use only efforts returned by the current host. `mini` is not a native effort;
-the selector accepts `mini` or `minimal` as an override alias for the selected
-model's lowest supported effort.
+Use only efforts returned by the current host.
 
 Automatic routes require their selected model. Luna implementation additionally
 requires `max`; do not silently fall back to Terra or Sol. A Sol supervision
-effort may move within the supported `high` through `max` range. Terra remains
-available only through an explicit user override.
+effort may move within the supported `high` through `max` range.
 
-User overrides take precedence when valid. Warn when an override crosses the
-Sol High supervision floor, differs from Luna Max implementation, or selects
-`ultra` outside hard parallel supervision.
+An explicit override is accepted only when it matches the mandatory phase route
+exactly. Reject every cross-model or cross-effort override.

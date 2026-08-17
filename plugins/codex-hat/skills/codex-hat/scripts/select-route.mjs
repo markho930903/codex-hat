@@ -42,6 +42,21 @@ function requireEnum(value, allowed, label) {
   return value;
 }
 
+function requireImplementationHandoff(value) {
+  const handoff = requireObject(value, "handoff");
+  for (const field of [
+    "scopeDefined",
+    "constraintsDefined",
+    "contextDefined",
+    "completionChecksDefined",
+  ]) {
+    if (handoff[field] !== true) {
+      throw new Error(`handoff.${field} must be true`);
+    }
+  }
+  return handoff;
+}
+
 function normalizeCapabilities(value) {
   const input = requireObject(value, "capabilities");
   const capabilities = {};
@@ -154,9 +169,19 @@ export function selectRoute(input) {
     ),
     risk: requireEnum(value.risk ?? "normal", RISKS, "risk"),
     parallelizable: value.parallelizable ?? false,
+    supervisionComplete: value.supervisionComplete ?? false,
   };
   if (typeof profile.parallelizable !== "boolean") {
     throw new Error("parallelizable must be a boolean");
+  }
+  if (typeof profile.supervisionComplete !== "boolean") {
+    throw new Error("supervisionComplete must be a boolean");
+  }
+  if (profile.phase === "implementation" && !profile.supervisionComplete) {
+    throw new Error("implementation requires supervisionComplete=true");
+  }
+  if (profile.phase === "implementation") {
+    requireImplementationHandoff(value.handoff);
   }
 
   const capabilities = normalizeCapabilities(
@@ -171,6 +196,12 @@ export function selectRoute(input) {
   if (hasModelOverride) requireEnum(override.model, MODELS, "override.model");
   if (hasEffortOverride && typeof override.effort !== "string") {
     throw new Error("override.effort must be a string");
+  }
+  if (
+    (hasModelOverride && override.model !== recommended.model) ||
+    (hasEffortOverride && override.effort !== recommended.effort)
+  ) {
+    throw new Error(`${profile.phase} route cannot be overridden`);
   }
 
   const warnings = [];
@@ -202,19 +233,6 @@ export function selectRoute(input) {
   );
 
   if (
-    profile.phase === "supervision" &&
-    (model !== "gpt-5.6-sol" ||
-      EFFORTS.indexOf(effort) < EFFORTS.indexOf("high"))
-  ) {
-    warnings.push("explicit override is below the supervision Sol High floor");
-  }
-  if (
-    profile.phase === "implementation" &&
-    (model !== "gpt-5.6-luna" || effort !== "max")
-  ) {
-    warnings.push("explicit override differs from the implementation Luna Max route");
-  }
-  if (
     effort === "ultra" &&
     (profile.phase !== "supervision" ||
       !profile.parallelizable ||
@@ -237,7 +255,7 @@ function printHelp() {
   console.log(`Usage: node select-route.mjs '<profile-json>'
 
 Required: taskType, difficulty
-Optional: phase (defaults to supervision), risk, parallelizable, capabilities, override`);
+Optional: phase (defaults to supervision), risk, parallelizable, supervisionComplete, handoff, capabilities, override`);
 }
 
 const isMain =

@@ -10,6 +10,12 @@ const profile = (overrides = {}) => ({
   parallelizable: false,
   ...overrides,
 });
+const handoff = {
+  scopeDefined: true,
+  constraintsDefined: true,
+  contextDefined: true,
+  completionChecksDefined: true,
+};
 
 test("starts every task in Sol supervision by default", () => {
   const result = selectRoute(profile());
@@ -51,6 +57,8 @@ test("routes every explicit implementation phase to Luna Max", () => {
       const result = selectRoute(
         profile({
           phase: "implementation",
+          supervisionComplete: true,
+          handoff,
           difficulty,
           risk,
           parallelizable: true,
@@ -81,6 +89,8 @@ test("uses Sol Ultra only for hard parallel supervision", () => {
     selectRoute(
       profile({
         phase: "implementation",
+        supervisionComplete: true,
+        handoff,
         difficulty: "hard",
         parallelizable: true,
       }),
@@ -103,6 +113,8 @@ test("requires the automatic phase model and Luna Max capability", () => {
       selectRoute(
         profile({
           phase: "implementation",
+          supervisionComplete: true,
+          handoff,
           capabilities: { "gpt-5.6-luna": ["high"] },
         }),
       ),
@@ -110,52 +122,26 @@ test("requires the automatic phase model and Luna Max capability", () => {
   );
 });
 
-test("preserves explicit overrides and warns when they cross phase policy", () => {
-  const supervision = selectRoute(
-    profile({ override: { model: "gpt-5.6-terra", effort: "medium" } }),
+test("allows only overrides identical to the mandatory route", () => {
+  assert.deepEqual(
+    selectRoute(
+      profile({
+        override: { model: "gpt-5.6-sol", effort: "high" },
+      }),
+    ).effective,
+    { model: "gpt-5.6-sol", effort: "high" },
   );
-  assert.deepEqual(supervision.effective, {
-    model: "gpt-5.6-terra",
-    effort: "medium",
-  });
-  assert.match(supervision.warnings.at(-1), /supervision Sol High floor/);
 
-  const implementation = selectRoute(
-    profile({
-      phase: "implementation",
-      override: { model: "gpt-5.6-sol", effort: "high" },
-    }),
-  );
-  assert.deepEqual(implementation.effective, {
-    model: "gpt-5.6-sol",
-    effort: "high",
-  });
-  assert.match(implementation.warnings.at(-1), /implementation Luna Max/);
-});
-
-test("normalizes mini to the explicitly selected model's lowest effort", () => {
-  const result = selectRoute(
-    profile({ override: { model: "gpt-5.6-terra", effort: "mini" } }),
-  );
-  assert.deepEqual(result.effective, {
-    model: "gpt-5.6-terra",
-    effort: "low",
-  });
-  assert.match(result.warnings[0], /alias/);
-});
-
-test("preserves an explicit Ultra override and marks invalid phase use", () => {
-  const result = selectRoute(
-    profile({
-      phase: "implementation",
-      override: { model: "gpt-5.6-sol", effort: "ultra" },
-    }),
-  );
-  assert.deepEqual(result.effective, {
-    model: "gpt-5.6-sol",
-    effort: "ultra",
-  });
-  assert.match(result.warnings.at(-1), /outside hard parallel work/);
+  for (const override of [
+    { model: "gpt-5.6-terra" },
+    { effort: "medium" },
+    { effort: "mini" },
+  ]) {
+    assert.throws(
+      () => selectRoute(profile({ override })),
+      /supervision route cannot be overridden/,
+    );
+  }
 });
 
 test("rejects invalid phases and unsupported explicit routes", () => {
@@ -167,9 +153,53 @@ test("rejects invalid phases and unsupported explicit routes", () => {
     () =>
       selectRoute(
         profile({
-          override: { model: "gpt-5.6-luna", effort: "ultra" },
+          override: { model: "gpt-5.6-luna", effort: "max" },
         }),
       ),
-    /does not support effort ultra/,
+    /supervision route cannot be overridden/,
   );
+});
+
+test("rejects implementation before Sol supervision completes", () => {
+  assert.throws(
+    () => selectRoute(profile({ phase: "implementation" })),
+    /implementation requires supervisionComplete=true/,
+  );
+  assert.throws(
+    () =>
+      selectRoute(
+        profile({
+          phase: "implementation",
+          supervisionComplete: "yes",
+        }),
+      ),
+    /supervisionComplete must be a boolean/,
+  );
+});
+
+test("requires a complete Sol handoff before implementation", () => {
+  assert.throws(
+    () =>
+      selectRoute(
+        profile({
+          phase: "implementation",
+          supervisionComplete: true,
+        }),
+      ),
+    /handoff must be an object/,
+  );
+
+  for (const field of Object.keys(handoff)) {
+    assert.throws(
+      () =>
+        selectRoute(
+          profile({
+            phase: "implementation",
+            supervisionComplete: true,
+            handoff: { ...handoff, [field]: false },
+          }),
+        ),
+      new RegExp(`handoff\\.${field} must be true`),
+    );
+  }
 });

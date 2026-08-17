@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-routing.cjs\"",
+            "timeout": 5,
+            "statusMessage": "Enforcing Codex Hat routing..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-routing.cjs\"",
+            "timeout": 5,
+            "statusMessage": "Enforcing Codex Hat routing..."
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-routing.cjs\"",
+            "timeout": 5,
+            "statusMessage": "Enforcing Codex Hat routing..."
+          }
+        ]
+      }
+    ]
+  }
+}
