@@ -1,6 +1,6 @@
 {
   "name": "codex-hat",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Enforce Sol supervision and Luna Max implementation with Terra Extra High fallback",
   "author": {
     "name": "markho930903",
@@ -19,7 +19,7 @@
     "category": "Productivity",
     "capabilities": ["Interactive", "Lifecycle hooks"],
     "defaultPrompt": [
-      "Use $codex-hat:codex-hat to supervise this task with Sol and delegate clear implementation units to Luna Max, or Terra Extra High when Luna Max is unavailable."
+      "Use $codex-hat:codex-hat: Sol supervises; Luna Max implements, with Terra Extra High fallback when unavailable."
     ]
   }
 }
