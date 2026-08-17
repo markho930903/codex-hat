@@ -1,7 +1,7 @@
 {
   "name": "codex-hat",
-  "version": "0.1.2",
-  "description": "Sort tasks across supported Codex models and reasoning efforts",
+  "version": "0.2.0",
+  "description": "Supervise tasks with Sol and delegate clear implementation to Luna Max",
   "author": {
     "name": "markho930903",
     "url": "https://github.com/markho930903"
@@ -12,13 +12,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Codex Hat",
-    "shortDescription": "Put each Codex task under the right model.",
-    "longDescription": "Act as a sorting hat for Codex tasks: classify task type, difficulty, risk, and parallelism, then route work to a supported Sol, Terra, or Luna model and reasoning effort.",
+    "shortDescription": "Supervise with Sol, implement with Luna Max.",
+    "longDescription": "Use Sol High or above for understanding, planning, design, decomposition, and result review, then delegate bounded implementation units to Luna Max.",
     "developerName": "markho930903",
     "category": "Productivity",
     "capabilities": ["Interactive"],
     "defaultPrompt": [
-      "Use $codex-hat:codex-hat to select and run the best Codex model for this task."
+      "Use $codex-hat:codex-hat to supervise this task with Sol and delegate clear implementation units to Luna Max."
     ]
   }
 }

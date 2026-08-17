@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 
 const MODELS = ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
 const EFFORTS = ["low", "medium", "high", "xhigh", "max", "ultra"];
+const PHASES = ["supervision", "implementation"];
 const TASK_TYPES = [
   "mechanical",
   "knowledge",
@@ -20,37 +21,11 @@ export const DEFAULT_CAPABILITIES = {
   "gpt-5.6-luna": ["low", "medium", "high", "xhigh", "max"],
 };
 
-const ROUTES = {
-  mechanical: {
-    easy: ["gpt-5.6-luna", "low"],
-    normal: ["gpt-5.6-luna", "medium"],
-    hard: ["gpt-5.6-terra", "medium"],
-    extreme: ["gpt-5.6-terra", "high"],
-  },
-  knowledge: {
-    easy: ["gpt-5.6-luna", "medium"],
-    normal: ["gpt-5.6-terra", "medium"],
-    hard: ["gpt-5.6-terra", "high"],
-    extreme: ["gpt-5.6-sol", "xhigh"],
-  },
-  implementation: {
-    easy: ["gpt-5.6-terra", "low"],
-    normal: ["gpt-5.6-terra", "medium"],
-    hard: ["gpt-5.6-sol", "high"],
-    extreme: ["gpt-5.6-sol", "max"],
-  },
-  investigation: {
-    easy: ["gpt-5.6-terra", "medium"],
-    normal: ["gpt-5.6-terra", "high"],
-    hard: ["gpt-5.6-sol", "xhigh"],
-    extreme: ["gpt-5.6-sol", "max"],
-  },
-  architecture: {
-    easy: ["gpt-5.6-sol", "high"],
-    normal: ["gpt-5.6-sol", "xhigh"],
-    hard: ["gpt-5.6-sol", "max"],
-    extreme: ["gpt-5.6-sol", "max"],
-  },
+const SUPERVISION_EFFORTS = {
+  easy: "high",
+  normal: "high",
+  hard: "xhigh",
+  extreme: "max",
 };
 
 function requireObject(value, label) {
@@ -93,17 +68,21 @@ function normalizeCapabilities(value) {
 }
 
 function policyRoute(profile) {
-  const [model, effort] = ROUTES[profile.taskType][profile.difficulty];
-  const route = { model, effort };
-  const reasons = [`${profile.taskType}/${profile.difficulty} baseline`];
-
-  if (profile.risk === "high") {
-    route.model = "gpt-5.6-sol";
-    if (EFFORTS.indexOf(route.effort) < EFFORTS.indexOf("high")) {
-      route.effort = "high";
-    }
-    reasons.push("high-risk Sol High floor");
+  if (profile.phase === "implementation") {
+    return {
+      route: { model: "gpt-5.6-luna", effort: "max" },
+      reasons: ["explicit implementation phase"],
+    };
   }
+
+  const route = {
+    model: "gpt-5.6-sol",
+    effort: SUPERVISION_EFFORTS[profile.difficulty],
+  };
+  const reasons = [
+    `${profile.taskType}/${profile.difficulty} supervision`,
+    "Sol High minimum",
+  ];
 
   if (
     profile.parallelizable &&
@@ -117,26 +96,9 @@ function policyRoute(profile) {
   return { route, reasons };
 }
 
-function resolveModel(target, capabilities, strict, warnings) {
+function resolveModel(target, capabilities) {
   if (capabilities[target]?.length) return target;
-  if (strict) throw new Error(`${target} is required but unavailable`);
-
-  const fallbacks = {
-    "gpt-5.6-luna": ["gpt-5.6-terra", "gpt-5.6-sol"],
-    "gpt-5.6-terra": ["gpt-5.6-sol"],
-    "gpt-5.6-sol": [],
-  };
-  const effective = fallbacks[target].find(
-    (model) => capabilities[model]?.length,
-  );
-  if (!effective) {
-    throw new Error(
-      `${target} is unavailable and no allowed fallback is available`,
-    );
-  }
-
-  warnings.push(`${target} is unavailable; using ${effective}`);
-  return effective;
+  throw new Error(`${target} is required but unavailable`);
 }
 
 function resolveEffort(target, efforts, options, warnings) {
@@ -183,6 +145,7 @@ function resolveEffort(target, efforts, options, warnings) {
 export function selectRoute(input) {
   const value = requireObject(input, "profile");
   const profile = {
+    phase: requireEnum(value.phase ?? "supervision", PHASES, "phase"),
     taskType: requireEnum(value.taskType, TASK_TYPES, "taskType"),
     difficulty: requireEnum(
       value.difficulty,
@@ -215,21 +178,19 @@ export function selectRoute(input) {
   const targetEffort = hasEffortOverride
     ? override.effort
     : recommended.effort;
-  const model = resolveModel(
-    targetModel,
-    capabilities,
-    hasModelOverride || recommended.model === "gpt-5.6-sol",
-    warnings,
-  );
+  const model = resolveModel(targetModel, capabilities);
   const effort = resolveEffort(
     targetEffort,
     capabilities[model],
     {
       model,
       strict:
-        hasEffortOverride && !["mini", "minimal"].includes(targetEffort),
+        (hasEffortOverride && !["mini", "minimal"].includes(targetEffort)) ||
+        (!hasModelOverride &&
+          !hasEffortOverride &&
+          profile.phase === "implementation"),
       minimum:
-        !hasEffortOverride && recommended.model === "gpt-5.6-sol"
+        !hasEffortOverride && profile.phase === "supervision"
           ? "high"
           : undefined,
       maximum:
@@ -241,15 +202,22 @@ export function selectRoute(input) {
   );
 
   if (
-    profile.risk === "high" &&
+    profile.phase === "supervision" &&
     (model !== "gpt-5.6-sol" ||
       EFFORTS.indexOf(effort) < EFFORTS.indexOf("high"))
   ) {
-    warnings.push("explicit override is below the high-risk Sol High floor");
+    warnings.push("explicit override is below the supervision Sol High floor");
+  }
+  if (
+    profile.phase === "implementation" &&
+    (model !== "gpt-5.6-luna" || effort !== "max")
+  ) {
+    warnings.push("explicit override differs from the implementation Luna Max route");
   }
   if (
     effort === "ultra" &&
-    (!profile.parallelizable ||
+    (profile.phase !== "supervision" ||
+      !profile.parallelizable ||
       !["hard", "extreme"].includes(profile.difficulty))
   ) {
     warnings.push("ultra was explicitly selected outside hard parallel work");
@@ -269,7 +237,7 @@ function printHelp() {
   console.log(`Usage: node select-route.mjs '<profile-json>'
 
 Required: taskType, difficulty
-Optional: risk, parallelizable, capabilities, override`);
+Optional: phase (defaults to supervision), risk, parallelizable, capabilities, override`);
 }
 
 const isMain =

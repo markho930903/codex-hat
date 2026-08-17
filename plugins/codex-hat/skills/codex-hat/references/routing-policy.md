@@ -1,17 +1,32 @@
 # Routing Policy
 
-Build a task profile from the work that will happen next, not from keywords in
-the request. Use this order:
+Build a profile for the work that happens next. Every user request begins in
+`supervision`; never treat a raw request as an already-defined implementation
+unit.
 
-1. Identify the primary deliverable and select the task type.
-2. Estimate difficulty from known scope and dependencies.
-3. Estimate risk from the consequences of acting on the result.
-4. Mark parallelism only when independent work units can be named now.
+Use this order:
+
+1. Select the current phase.
+2. Identify the primary deliverable and select the task type.
+3. Estimate difficulty from known scope and dependencies.
+4. Estimate risk from the consequences of acting on the result.
+5. Mark parallelism only when independent work units can be named now.
 
 When repository facts decide a boundary, perform the smallest authorized
-read-only inspection before selecting a route. For a mixed-phase task, classify
-the current phase and classify again only when the work moves to a materially
-different phase, such as investigation to implementation.
+read-only inspection before selecting a route.
+
+## Phase
+
+- `supervision`: request understanding, investigation, planning, design,
+  decomposition, decisions, coordination, verification, or result review. Route
+  to Sol with at least `high` effort.
+- `implementation`: a bounded execution unit already defined by Sol, including
+  its scope, constraints, relevant context, and completion checks. Route to Luna
+  `max`.
+
+After an implementation unit returns, switch back to `supervision`. Sol reviews
+the result and either accepts it or defines another bounded implementation unit.
+Luna does not redesign the task or expand its scope.
 
 ## Task Type
 
@@ -21,11 +36,9 @@ different phase, such as investigation to implementation.
 - `investigation`: debugging, root-cause analysis, review, proof, or research that must test competing explanations.
 - `architecture`: system design, migration strategy, trust boundaries, or another decision-heavy design task.
 
-Choose the type from the requested deliverable. Security, financial,
-production, permission, and migration terms do not make a task `architecture`
-by themselves. For an operational request, use `mechanical` for a deterministic
-operation, `implementation` for a code or configuration change,
-`investigation` for diagnosis, and `architecture` for designing the operation.
+Task type describes the deliverable; it does not select the model. For example,
+planning an implementation deliverable is still the `supervision` phase, while
+editing the files in an approved unit is the `implementation` phase.
 
 ## Difficulty
 
@@ -34,12 +47,17 @@ operation, `implementation` for a code or configuration change,
 - `hard`: material ambiguity, multiple modules, subtle edge cases, or substantial verification.
 - `extreme`: cross-system reasoning, a large context, competing constraints, or unusually deep validation.
 
-Do not raise difficulty merely because a deterministic task has many records. Volume affects execution shape; it does not necessarily require a stronger model.
+Difficulty controls Sol supervision effort:
 
-Keep difficulty independent from risk. A dangerous but well-defined operation
-can be easy or normal; a read-only proof can be hard or extreme. Do not use
-`extreme` for a single subtle problem unless it requires unusually deep or
-cross-system reasoning.
+| Difficulty | Sol effort |
+| --- | --- |
+| `easy` | `high` |
+| `normal` | `high` |
+| `hard` | `xhigh` |
+| `extreme` | `max` |
+
+Hard or extreme parallel supervision may use `ultra`. Every implementation unit
+uses Luna `max` regardless of difficulty.
 
 ## Risk
 
@@ -47,36 +65,29 @@ cross-system reasoning.
 - `normal`: ordinary local edits, validation, or reversible non-production changes.
 - `high`: an authorized action can affect production, money, permissions, a security boundary, persistent data, or an irreversible outcome; or the result directly governs such an action and an error would have material consequences.
 
-Judge impact, target, and reversibility rather than matching domain words. A
-public security-paper summary, formatting a supplied production log, or testing
-a financial helper without deployment is not high risk. A production deletion,
-permission change, financial calculation used for decisions, or executable
-migration plan is high risk.
-
-High risk sets a Sol High floor for automatic routing. An explicit user override remains effective but must produce a warning when it falls below that floor.
+Keep difficulty independent from risk. High-risk work still follows the same
+phase routes: Sol defines and reviews the unit, while Luna Max executes only the
+bounded implementation. An explicit override below Sol High produces a warning.
 
 ## Parallelism
 
 Set `parallelizable` to `true` only when the task has at least two independent
 work units with clear ownership and return contracts, and delegation can reduce
-the critical path. If those units cannot be named, use `false`. Shared-file
-edits, ordered migrations, one root-cause proof, and one difficult invariant are
-not parallel work. Volume alone does not make a task parallel.
+the critical path. Shared-file edits, ordered migrations, one root-cause proof,
+and one difficult invariant are not parallel work.
 
-`ultra` is selected only for hard or extreme parallel work. Use `max` for extreme serial reasoning.
+Sol may use `ultra` only for hard or extreme parallel supervision. Route each
+independent implementation unit separately to Luna Max.
 
-## Boundary Examples
+## Phase Examples
 
-| Request | Profile |
-| --- | --- |
-| Summarize a public security whitepaper | `knowledge/easy/low/false` |
-| Write tests for a financial rounding helper without deployment | `implementation/normal/normal/false` |
-| Format a supplied production audit log without system access | `mechanical/easy/low/false` |
-| Find one distributed race root cause across three services | `investigation/extreme/low/false` |
-| Design a financial zero-downtime migration used for rollout | `architecture/extreme/high/false` |
-| Delete one production tenant and revoke its credentials | `mechanical/normal/high/false` |
-| Review two unrelated packages and return separate reports | `investigation/hard/low/true` |
-| Prove one subtle lock-free queue invariant | `investigation/hard/low/false` |
+| Next work | Phase | Automatic route |
+| --- | --- | --- |
+| Understand a bug report and inspect its call path | `supervision` | Sol High or above |
+| Design a migration and split its execution units | `supervision` | Sol High or above |
+| Apply one defined code change with stated checks | `implementation` | Luna Max |
+| Review Luna's diff and test output | `supervision` | Sol High or above |
+| Coordinate three independent hard work units | `supervision` | Sol Ultra |
 
 ## Overrides And Capabilities
 
@@ -86,6 +97,15 @@ Use these exact model IDs when supported:
 - `gpt-5.6-terra`
 - `gpt-5.6-luna`
 
-Use only efforts returned by the current host. `mini` is not a native effort; the selector accepts `mini` or `minimal` as an override alias for the selected model's lowest supported effort.
+Use only efforts returned by the current host. `mini` is not a native effort;
+the selector accepts `mini` or `minimal` as an override alias for the selected
+model's lowest supported effort.
 
-User overrides take precedence over the policy when valid. Automatic fallbacks may move Luna to Terra or Terra to Sol, but never silently downgrade a Sol policy route. Always use the selector's `effective` result for execution.
+Automatic routes require their selected model. Luna implementation additionally
+requires `max`; do not silently fall back to Terra or Sol. A Sol supervision
+effort may move within the supported `high` through `max` range. Terra remains
+available only through an explicit user override.
+
+User overrides take precedence when valid. Warn when an override crosses the
+Sol High supervision floor, differs from Luna Max implementation, or selects
+`ultra` outside hard parallel supervision.

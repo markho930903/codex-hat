@@ -11,32 +11,60 @@ const profile = (overrides = {}) => ({
   ...overrides,
 });
 
-test("selects the preferred baseline routes", () => {
-  const cases = [
-    [
-      profile({ taskType: "mechanical", difficulty: "easy" }),
-      "gpt-5.6-luna",
-      "low",
-    ],
-    [profile(), "gpt-5.6-terra", "medium"],
-    [
-      profile({ taskType: "investigation", difficulty: "hard" }),
-      "gpt-5.6-sol",
-      "xhigh",
-    ],
-    [
-      profile({ taskType: "architecture", difficulty: "extreme" }),
-      "gpt-5.6-sol",
-      "max",
-    ],
-  ];
+test("starts every task in Sol supervision by default", () => {
+  const result = selectRoute(profile());
+  assert.equal(result.profile.phase, "supervision");
+  assert.deepEqual(result.effective, {
+    model: "gpt-5.6-sol",
+    effort: "high",
+  });
+});
 
-  for (const [input, model, effort] of cases) {
-    assert.deepEqual(selectRoute(input).effective, { model, effort });
+test("keeps all supervision work on Sol High or above", () => {
+  const taskTypes = [
+    "mechanical",
+    "knowledge",
+    "implementation",
+    "investigation",
+    "architecture",
+  ];
+  const expectedEfforts = {
+    easy: "high",
+    normal: "high",
+    hard: "xhigh",
+    extreme: "max",
+  };
+
+  for (const taskType of taskTypes) {
+    for (const [difficulty, effort] of Object.entries(expectedEfforts)) {
+      assert.deepEqual(
+        selectRoute(profile({ taskType, difficulty })).effective,
+        { model: "gpt-5.6-sol", effort },
+      );
+    }
   }
 });
 
-test("uses Sol Ultra only for hard parallel work", () => {
+test("routes every explicit implementation phase to Luna Max", () => {
+  for (const difficulty of ["easy", "normal", "hard", "extreme"]) {
+    for (const risk of ["low", "normal", "high"]) {
+      const result = selectRoute(
+        profile({
+          phase: "implementation",
+          difficulty,
+          risk,
+          parallelizable: true,
+        }),
+      );
+      assert.deepEqual(result.effective, {
+        model: "gpt-5.6-luna",
+        effort: "max",
+      });
+    }
+  }
+});
+
+test("uses Sol Ultra only for hard parallel supervision", () => {
   const result = selectRoute(
     profile({
       taskType: "investigation",
@@ -48,24 +76,67 @@ test("uses Sol Ultra only for hard parallel work", () => {
     model: "gpt-5.6-sol",
     effort: "ultra",
   });
+
+  assert.deepEqual(
+    selectRoute(
+      profile({
+        phase: "implementation",
+        difficulty: "hard",
+        parallelizable: true,
+      }),
+    ).effective,
+    { model: "gpt-5.6-luna", effort: "max" },
+  );
 });
 
-test("enforces the automatic high-risk floor", () => {
-  const result = selectRoute(
+test("requires the automatic phase model and Luna Max capability", () => {
+  assert.throws(
+    () =>
+      selectRoute(
+        profile({ capabilities: { "gpt-5.6-terra": ["high"] } }),
+      ),
+    /gpt-5.6-sol is required but unavailable/,
+  );
+
+  assert.throws(
+    () =>
+      selectRoute(
+        profile({
+          phase: "implementation",
+          capabilities: { "gpt-5.6-luna": ["high"] },
+        }),
+      ),
+    /does not support effort max/,
+  );
+});
+
+test("preserves explicit overrides and warns when they cross phase policy", () => {
+  const supervision = selectRoute(
+    profile({ override: { model: "gpt-5.6-terra", effort: "medium" } }),
+  );
+  assert.deepEqual(supervision.effective, {
+    model: "gpt-5.6-terra",
+    effort: "medium",
+  });
+  assert.match(supervision.warnings.at(-1), /supervision Sol High floor/);
+
+  const implementation = selectRoute(
     profile({
-      taskType: "mechanical",
-      difficulty: "easy",
-      risk: "high",
+      phase: "implementation",
+      override: { model: "gpt-5.6-sol", effort: "high" },
     }),
   );
-  assert.deepEqual(result.effective, {
+  assert.deepEqual(implementation.effective, {
     model: "gpt-5.6-sol",
     effort: "high",
   });
+  assert.match(implementation.warnings.at(-1), /implementation Luna Max/);
 });
 
-test("normalizes mini to the selected model's lowest supported effort", () => {
-  const result = selectRoute(profile({ override: { effort: "mini" } }));
+test("normalizes mini to the explicitly selected model's lowest effort", () => {
+  const result = selectRoute(
+    profile({ override: { model: "gpt-5.6-terra", effort: "mini" } }),
+  );
   assert.deepEqual(result.effective, {
     model: "gpt-5.6-terra",
     effort: "low",
@@ -73,78 +144,10 @@ test("normalizes mini to the selected model's lowest supported effort", () => {
   assert.match(result.warnings[0], /alias/);
 });
 
-test("falls forward from unavailable Luna to Terra", () => {
+test("preserves an explicit Ultra override and marks invalid phase use", () => {
   const result = selectRoute(
     profile({
-      taskType: "mechanical",
-      difficulty: "easy",
-      capabilities: {
-        "gpt-5.6-terra": ["low", "medium"],
-        "gpt-5.6-sol": ["high"],
-      },
-    }),
-  );
-  assert.deepEqual(result.recommended, {
-    model: "gpt-5.6-luna",
-    effort: "low",
-  });
-  assert.deepEqual(result.effective, {
-    model: "gpt-5.6-terra",
-    effort: "low",
-  });
-});
-
-test("rejects unsupported explicit routes and Sol downgrades", () => {
-  assert.throws(
-    () =>
-      selectRoute(
-        profile({
-          taskType: "mechanical",
-          difficulty: "easy",
-          override: { model: "gpt-5.6-luna", effort: "ultra" },
-        }),
-      ),
-    /does not support effort ultra/,
-  );
-
-  assert.throws(
-    () =>
-      selectRoute(
-        profile({
-          taskType: "investigation",
-          difficulty: "hard",
-          capabilities: { "gpt-5.6-terra": ["high"] },
-        }),
-      ),
-    /gpt-5.6-sol is required but unavailable/,
-  );
-});
-
-test("falls forward from Terra to Sol but never backward to Luna", () => {
-  const result = selectRoute(
-    profile({
-      capabilities: { "gpt-5.6-sol": ["medium"] },
-    }),
-  );
-  assert.deepEqual(result.effective, {
-    model: "gpt-5.6-sol",
-    effort: "medium",
-  });
-
-  assert.throws(
-    () =>
-      selectRoute(
-        profile({
-          capabilities: { "gpt-5.6-luna": ["medium"] },
-        }),
-      ),
-    /no allowed fallback/,
-  );
-});
-
-test("preserves an explicit Ultra override outside hard parallel work", () => {
-  const result = selectRoute(
-    profile({
+      phase: "implementation",
       override: { model: "gpt-5.6-sol", effort: "ultra" },
     }),
   );
@@ -155,64 +158,18 @@ test("preserves an explicit Ultra override outside hard parallel work", () => {
   assert.match(result.warnings.at(-1), /outside hard parallel work/);
 });
 
-test("does not select Ultra automatically for serial work", () => {
+test("rejects invalid phases and unsupported explicit routes", () => {
+  assert.throws(
+    () => selectRoute(profile({ phase: "review" })),
+    /phase must be one of/,
+  );
   assert.throws(
     () =>
       selectRoute(
         profile({
-          taskType: "architecture",
-          difficulty: "extreme",
-          capabilities: { "gpt-5.6-sol": ["ultra"] },
+          override: { model: "gpt-5.6-luna", effort: "ultra" },
         }),
       ),
-    /required range/,
+    /does not support effort ultra/,
   );
-});
-
-test("keeps automatic policy routes monotonic and within their floors", () => {
-  const taskTypes = [
-    "mechanical",
-    "knowledge",
-    "implementation",
-    "investigation",
-    "architecture",
-  ];
-  const difficulties = ["easy", "normal", "hard", "extreme"];
-  const risks = ["low", "normal", "high"];
-  const efforts = ["low", "medium", "high", "xhigh", "max", "ultra"];
-  const models = ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"];
-
-  for (const taskType of taskTypes) {
-    for (const risk of risks) {
-      for (const parallelizable of [false, true]) {
-        let previous;
-        for (const difficulty of difficulties) {
-          const input = { taskType, difficulty, risk, parallelizable };
-          const { recommended } = selectRoute(input);
-
-          if (risk === "high") {
-            assert.equal(recommended.model, "gpt-5.6-sol");
-            assert.ok(
-              efforts.indexOf(recommended.effort) >= efforts.indexOf("high"),
-            );
-          }
-          if (recommended.effort === "ultra") {
-            assert.equal(parallelizable, true);
-            assert.ok(["hard", "extreme"].includes(difficulty));
-          }
-          if (previous) {
-            assert.ok(
-              models.indexOf(recommended.model) >=
-                models.indexOf(previous.model),
-            );
-            assert.ok(
-              efforts.indexOf(recommended.effort) >=
-                efforts.indexOf(previous.effort),
-            );
-          }
-          previous = recommended;
-        }
-      }
-    }
-  }
 });
